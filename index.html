@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raybin AI</title>
+<style>
+body{
+    font-family:tahoma;
+    background:#E0F2F1;
+    text-align:center;
+    margin:0;
+}
+.header{
+    background:#B2DFDB;
+    padding:10px;
+}
+video{
+    width:90%;
+    max-width:700px;
+    margin-top:20px;
+    border:4px solid #333;
+    border-radius:10px;
+    background:black;
+}
+button{
+    padding:12px 20px;
+    margin:8px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    color:white;
+    font-size:16px;
+}
+#analyzeBtn{background:#00897B;}
+#switchBtn{background:#6A1B9A;}
+#voiceBtn{background:#0288D1;}
+#result{
+    background:white;
+    margin:20px auto;
+    padding:15px;
+    width:90%;
+    max-width:800px;
+    border-radius:10px;
+    min-height:80px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+<select id="language">
+<option value="Persian">فارسی</option>
+<option value="English">English</option>
+<option value="Arabic">العربية</option>
+<option value="Chinese">中文</option>
+</select>
+</div>
+<h1 id="title">دستیار هوشمند رای‌بین</h1>
+<video id="video" autoplay playsinline></video>
+<br>
+<button id="analyzeBtn" onclick="analyzeImage()">
+تحلیل علامت
+</button>
+<button id="switchBtn" onclick="switchCamera()">
+تغییر دوربین
+</button>
+<button id="voiceBtn" onclick="playVoice()">
+پخش صدا
+</button>
+<div id="result">
+آماده برای تحلیل...
+</div>
+<script>
+const API_KEY = "API_KEY_HERE";
+const LANG = {
+Persian:{
+title:"دستیار هوشمند رای‌بین",
+analyze:"تحلیل علامت",
+voice:"پخش صدا"
+},
+English:{
+title:"Raybin AI Vision",
+analyze:"Analyze Gesture",
+voice:"Play Voice"
+},
+Arabic:{
+title:"مساعد رايبين",
+analyze:"تحليل الإشارة",
+voice:"تشغيل الصوت"
+},
+Chinese:{
+title:"Raybin AI",
+analyze:"分析手势",
+voice:"播放语音"
+}
+};
+const video = document.getElementById("video");
+let facingMode = "environment";
+document.getElementById("language")
+.addEventListener("change", updateLanguage);
+function updateLanguage(){
+const lang =
+document.getElementById("language").value;
+document.getElementById("title").innerText =
+LANG[lang].title;
+document.getElementById("analyzeBtn").innerText =
+LANG[lang].analyze;
+document.getElementById("voiceBtn").innerText =
+LANG[lang].voice;
+}
+async function startCamera(){
+try{
+const stream =
+await navigator.mediaDevices.getUserMedia({
+video:{facingMode:facingMode},
+audio:false
+});
+video.srcObject = stream;
+}catch(e){
+document.getElementById("result").innerText =
+"دسترسی به دوربین امکان‌پذیر نیست.";
+}
+}
+async function switchCamera(){
+if(video.srcObject){
+video.srcObject.getTracks()
+.forEach(track=>track.stop());
+}
+facingMode =
+facingMode === "environment"
+? "user"
+: "environment";
+await startCamera();
+}
+startCamera();
+async function analyzeImage(){
+if(API_KEY === "API_KEY_HERE"){
+document.getElementById("result").innerText =
+"کلید Gemini را وارد نکرده‌ای.";
+return;
+}
+const canvas =
+document.createElement("canvas");
+canvas.width = video.videoWidth;
+canvas.height = video.videoHeight;
+const ctx = canvas.getContext("2d");
+ctx.drawImage(video,0,0);
+const imageData =
+canvas.toDataURL("image/jpeg")
+.split(",")[1];
+document.getElementById("result").innerText =
+"در حال تحلیل...";
+try{
+const response = await fetch(
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+contents:[
+{
+parts:[
+{
+text:`
+You are an expert sign language interpreter.
+Analyze the image.
+If it contains a common sign language gesture,
+return its most likely meaning.
+Answer only in the selected language:
+${document.getElementById("language").value}
+If uncertain, say:
+Gesture not recognized.
+`
+},
+{
+inline_data:{
+mime_type:"image/jpeg",
+data:imageData
+}
+}
+]
+}
+]
+})
+}
+);
+const data = await response.json();
+document.getElementById("result").innerText =
+data.candidates?.[0]?.content?.parts?.[0]?.text
+|| "پاسخی دریافت نشد";
+}catch(err){
+document.getElementById("result").innerText =
+"خطا در ارتباط با Gemini";
+}
+}
+function playVoice(){
+const text =
+document.getElementById("result").innerText;
+const speech =
+new SpeechSynthesisUtterance(text);
+speechSynthesis.speak(speech);
+}
+</script>
+</body>
+</html
